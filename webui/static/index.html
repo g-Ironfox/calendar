@@ -20,11 +20,8 @@
       <div class="sidebar-rule"></div>
       <section class="calendars">
         <h2>我的日历</h2>
-        <label class="calendar-row"><input type="checkbox" checked data-filter="blue"><button type="button" class="dot blue" data-palette-toggle="blue" aria-label="自定义个人日历颜色" title="自定义颜色"></button><span>个人</span><div class="color-palette hidden" data-palette="blue" role="group" aria-label="个人日历配色"></div></label>
-        <label class="calendar-row"><input type="checkbox" checked data-filter="green"><button type="button" class="dot green" data-palette-toggle="green" aria-label="自定义工作日历颜色" title="自定义颜色"></button><span>工作</span><div class="color-palette hidden" data-palette="green" role="group" aria-label="工作日历配色"></div></label>
-        <label class="calendar-row"><input type="checkbox" checked data-filter="orange"><button type="button" class="dot orange" data-palette-toggle="orange" aria-label="自定义重要日期日历颜色" title="自定义颜色"></button><span>重要日期</span><div class="color-palette hidden" data-palette="orange" role="group" aria-label="重要日期日历配色"></div></label>
-        <label class="calendar-row"><input type="checkbox" checked data-filter="pink"><button type="button" class="dot pink" data-palette-toggle="pink" aria-label="自定义生活日历颜色" title="自定义颜色"></button><span>生活</span><div class="color-palette hidden" data-palette="pink" role="group" aria-label="生活日历配色"></div></label>
-        <label class="calendar-row"><input type="checkbox" checked data-filter="purple"><button type="button" class="dot purple" data-palette-toggle="purple" aria-label="自定义其他日历颜色" title="自定义颜色"></button><span>其他</span><div class="color-palette hidden" data-palette="purple" role="group" aria-label="其他日历配色"></div></label>
+        <div class="category-list" id="category-list"></div>
+        <button type="button" class="add-category-button" id="add-category"><span aria-hidden="true">＋</span>新增类型</button>
       </section>
       <div class="sidebar-bottom"><span class="avatar">林</span><span class="profile"><b>林知夏</b><small>个人空间</small></span><button class="icon-button more" aria-label="更多选项">···</button></div>
     </aside>
@@ -38,6 +35,14 @@
       <section class="day-view hidden" id="day-view" aria-label="日视图"><div class="all-day-row"><div class="all-day-label">全天</div><div class="all-day-events" id="all-day-events"></div></div><div class="day-scroll" id="day-scroll"><div class="time-grid" id="time-grid"></div><div class="timed-event-layer" id="timed-event-layer"></div></div></section>
     </main>
   </div>
+  <dialog id="category-dialog">
+    <form id="category-form">
+      <div class="dialog-header"><div><p class="eyebrow">我的日历</p><h2>新增类型</h2></div><button type="button" class="icon-button close-button" id="close-category-dialog" aria-label="关闭">×</button></div>
+      <label class="field-label" for="category-name">类型名称</label><input class="text-input title-input" id="category-name" name="name" maxlength="24" placeholder="例如：学习、运动" required>
+      <label class="field-label" for="category-color">标记颜色</label><input class="category-color-input" id="category-color" name="color" type="color" value="#5684E8">
+      <div class="dialog-footer"><span class="form-error" id="category-error" role="alert"></span><button class="save-button" type="submit">创建类型</button></div>
+    </form>
+  </dialog>
   <dialog id="event-dialog">
     <form id="event-form">
       <div class="dialog-header"><div><p class="eyebrow" id="dialog-eyebrow">新日程</p><h2 id="dialog-title">安排一件事</h2></div><button type="button" class="icon-button close-button" id="close-dialog" aria-label="关闭">×</button></div>

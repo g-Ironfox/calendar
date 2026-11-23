@@ -37,7 +37,7 @@ class EventInput(BaseModel):
     date: date
     start_time: str = Field(default="", max_length=5)
     end_time: str = Field(default="", max_length=5)
-    color: str = Field(default="blue", pattern="^(blue|green|orange|pink|purple)$")
+    color: str = Field(default="blue", min_length=1, max_length=40, pattern="^[a-zA-Z0-9_-]+$")
     notes: str = Field(default="", max_length=1000)
 
     @field_validator("title")
