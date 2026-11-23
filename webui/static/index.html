@@ -12,12 +12,6 @@
     <aside class="sidebar">
       <a class="brand" href="/" aria-label="Dayline 日历首页"><span class="brand-mark"><span></span><span></span><span></span><span></span></span><span>dayline</span></a>
       <button class="create-button" id="create-event"><span class="plus">＋</span> 创建日程</button>
-      <section class="mini-section" aria-label="迷你日历">
-        <div class="mini-heading"><button class="icon-button" id="mini-prev" aria-label="上个月">‹</button><strong id="mini-title"></strong><button class="icon-button" id="mini-next" aria-label="下个月">›</button></div>
-        <div class="mini-grid mini-weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
-        <div class="mini-grid" id="mini-days"></div>
-      </section>
-      <div class="sidebar-rule"></div>
       <section class="calendars">
         <h2>我的日历</h2>
         <div class="category-list" id="category-list"></div>
@@ -28,11 +22,9 @@
     <main class="main-content">
       <header class="topbar">
         <div class="heading-group"><span class="eyebrow" id="today-label"></span><h1 id="month-heading"></h1></div>
-        <div class="toolbar"><button class="today-button" id="go-today">今天</button><div class="month-nav"><button class="icon-button" id="prev-month" aria-label="上个月">‹</button><button class="icon-button" id="next-month" aria-label="下个月">›</button></div><span class="toolbar-divider"></span><select class="view-select" id="view-select" aria-label="日历视图"><option value="month">月视图</option><option value="day">日视图</option><option value="month-day">月-日视图</option></select></div>
+        <div class="toolbar"><button class="today-button" id="go-today">今天</button><div class="month-nav"><button class="icon-button" id="prev-month" aria-label="上个月">‹</button><button class="icon-button" id="next-month" aria-label="下个月">›</button></div></div>
       </header>
-      <section class="calendar" id="month-view" aria-label="月历"><div class="weekday-row"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div><div class="month-grid" id="month-grid"></div></section>
-      <section class="month-day-view hidden" id="month-day-view" aria-label="月历和当日日程"><div class="month-day-calendar"><div class="weekday-row"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div><div class="month-grid" id="month-day-grid"></div></div><aside class="agenda-panel"><header class="agenda-heading"><div><p class="eyebrow">当日日程</p><h2 id="agenda-date"></h2></div><button class="icon-button" id="agenda-add" aria-label="为所选日期添加日程">＋</button></header><div class="agenda-scroll" id="agenda-scroll"><section class="agenda-all-day"><h3>全天</h3><div id="agenda-all-day-events"></div></section><div class="agenda-hours" id="agenda-hours"></div></div></aside></section>
-      <section class="day-view hidden" id="day-view" aria-label="日视图"><div class="all-day-row"><div class="all-day-label">全天</div><div class="all-day-events" id="all-day-events"></div></div><div class="day-scroll" id="day-scroll"><div class="time-grid" id="time-grid"></div><div class="timed-event-layer" id="timed-event-layer"></div></div></section>
+      <section class="month-day-view" id="month-day-view" aria-label="月历和当日日程"><div class="month-day-calendar"><div class="weekday-row"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div><div class="month-grid" id="month-day-grid"></div></div><aside class="agenda-panel"><header class="agenda-heading"><div><p class="eyebrow">当日日程</p><h2 id="agenda-date"></h2></div><button class="icon-button" id="agenda-add" aria-label="为所选日期添加日程">＋</button></header><div class="agenda-scroll" id="agenda-scroll"><section class="agenda-all-day"><h3>全天</h3><div id="agenda-all-day-events"></div></section><div class="agenda-hours" id="agenda-hours"></div></div></aside></section>
     </main>
   </div>
   <dialog id="category-dialog">
