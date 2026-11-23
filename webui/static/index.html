@@ -53,12 +53,19 @@
   </dialog>
   <dialog id="event-dialog">
     <form id="event-form">
-      <div class="dialog-header"><div><p class="eyebrow" id="dialog-eyebrow">新日程</p><h2 id="dialog-title">安排一件事</h2></div><button type="button" class="icon-button close-button" id="close-dialog" aria-label="关闭">×</button></div>
+      <div class="dialog-header"><div><p class="eyebrow" id="dialog-eyebrow">新日程</p><h2 id="dialog-title">安排一件事</h2></div><div class="dialog-actions"><button type="button" class="delete-button hidden" id="delete-event">删除日程</button><button type="button" class="icon-button close-button" id="close-dialog" aria-label="关闭">×</button></div></div>
       <label class="field-label" for="event-title">标题</label><input class="text-input title-input" id="event-title" name="title" maxlength="120" placeholder="给这件事起个名字" required>
       <div class="field-row"><div class="field"><label class="field-label" for="event-date">日期</label><input class="text-input" id="event-date" name="date" type="date" required></div><div class="field"><label class="field-label" for="event-color">日历</label><select class="text-input" id="event-color" name="color"><option value="blue">个人</option><option value="green">工作</option><option value="orange">重要日期</option><option value="pink">生活</option><option value="purple">其他</option></select></div></div>
       <div class="field-row"><div class="field"><label class="field-label" for="event-start">开始时间</label><input class="text-input" id="event-start" name="start_time" type="time"></div><div class="field"><label class="field-label" for="event-end">结束时间</label><input class="text-input" id="event-end" name="end_time" type="time"></div></div>
       <label class="field-label" for="event-notes">备注</label><textarea class="text-input notes-input" id="event-notes" name="notes" maxlength="1000" rows="3" placeholder="添加一些细节"></textarea>
-      <div class="dialog-footer"><button type="button" class="delete-button hidden" id="delete-event">删除日程</button><span class="form-error" id="form-error" role="alert"></span><button class="save-button" type="submit" id="save-event">保存日程</button></div>
+      <div class="dialog-footer"><span class="form-error" id="form-error" role="alert"></span><button class="save-button" type="submit" id="save-event">保存日程</button></div>
+    </form>
+  </dialog>
+  <dialog id="event-delete-dialog">
+    <form id="event-delete-form">
+      <div class="dialog-header"><div><p class="eyebrow">删除日程</p><h2 id="event-delete-title">确认删除？</h2></div><button type="button" class="icon-button close-button" id="close-event-delete" aria-label="关闭">×</button></div>
+      <p class="delete-category-summary">删除后无法恢复。</p>
+      <div class="dialog-footer"><button type="button" class="today-button" id="cancel-event-delete">取消</button><button class="delete-button confirm-delete-button" type="submit">删除日程</button></div>
     </form>
   </dialog>
   <div class="toast" id="toast" role="status"></div>

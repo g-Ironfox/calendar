@@ -530,14 +530,29 @@ $('#event-form').addEventListener('submit', async (event) => {
     showToast(state.editingId ? '日程已更新' : '日程已创建'); await loadEvents();
   } catch (error) { $('#form-error').textContent = error.message; }
 });
-$('#delete-event').addEventListener('click', async () => {
-  if (!state.editingId) return;
-  try {
-    const response = await fetch(`/api/events/${encodeURIComponent(state.editingId)}`, { method: 'DELETE' });
-    if (!response.ok) throw new Error('删除失败，请重试');
-    $('#event-dialog').close(); showToast('日程已删除'); await loadEvents();
-  } catch (error) { $('#form-error').textContent = error.message; }
-});
+  $('#delete-event').addEventListener('click', () => {
+    if (!state.editingId) return;
+    $('#event-delete-title').textContent = `删除“${$('#event-title').value.trim() || '未命名日程'}”？`;
+    $('#event-delete-dialog').showModal();
+  });
+  $('#close-event-delete').addEventListener('click', () => $('#event-delete-dialog').close());
+  $('#cancel-event-delete').addEventListener('click', () => $('#event-delete-dialog').close());
+  $('#event-delete-dialog').addEventListener('click', (event) => { if (event.target === $('#event-delete-dialog')) $('#event-delete-dialog').close(); });
+  $('#event-delete-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!state.editingId) return;
+    const deleteButton = $('#event-delete-form button[type=submit]');
+    deleteButton.disabled = true;
+    try {
+      const response = await fetch(`/api/events/${encodeURIComponent(state.editingId)}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('删除失败，请重试');
+      $('#event-delete-dialog').close(); $('#event-dialog').close();
+      showToast('日程已删除'); await loadEvents();
+    } catch (error) {
+      $('#event-delete-dialog').close();
+      $('#form-error').textContent = error.message;
+    } finally { deleteButton.disabled = false; }
+  });
 document.addEventListener('click', (event) => {
   if (!event.target.closest('.calendar-row, .color-palette')) document.querySelectorAll('.color-palette').forEach((palette) => palette.classList.add('hidden'));
 });
