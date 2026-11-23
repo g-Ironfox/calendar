@@ -333,6 +333,13 @@ function shiftMonth(amount) {
   state.selectedDate = formatDate(new Date(state.year, state.month, day));
   loadEvents();
 }
+function shiftSelectedDate(amount) {
+  const next = new Date(`${state.selectedDate}T12:00:00`);
+  next.setDate(next.getDate() + amount);
+  state.selectedDate = formatDate(next);
+  state.year = next.getFullYear(); state.month = next.getMonth();
+  loadEvents();
+}
 function openDialog(date = state.selectedDate, event = null, startTime = '') {
   if (!calendarCategories.length) { showToast('请先新增一个日历类型'); return; }
   state.editingId = event?.id ?? null;
@@ -467,8 +474,10 @@ document.addEventListener('click', (event) => {
 });
 document.addEventListener('keydown', (event) => {
   if ($('#event-dialog').open || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
-  if (event.key === 'ArrowLeft') shiftMonth(-1);
-  if (event.key === 'ArrowRight') shiftMonth(1);
+  if (event.key === 'ArrowLeft') { event.preventDefault(); shiftSelectedDate(-1); }
+  if (event.key === 'ArrowRight') { event.preventDefault(); shiftSelectedDate(1); }
+  if (event.key === 'ArrowUp') { event.preventDefault(); shiftSelectedDate(-7); }
+  if (event.key === 'ArrowDown') { event.preventDefault(); shiftSelectedDate(7); }
 });
 setupColorPalettes();
 render();
