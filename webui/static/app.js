@@ -226,33 +226,63 @@ function renderDay() {
   }
 
   const timedEvents = dateEvents.filter((event) => event.start_time).sort((a, b) => a.start_time.localeCompare(b.start_time));
-  const laneEnds = [];
-  timedEvents.forEach((event) => {
-    const start = timeToMinutes(event.start_time);
-    let end = event.end_time ? timeToMinutes(event.end_time) : start + 60;
-    if (end <= start) end = start + 60;
-    event._layout = { start, end, lane: laneEnds.findIndex((laneEnd) => laneEnd <= start) };
-    if (event._layout.lane === -1) event._layout.lane = laneEnds.length;
-    laneEnds[event._layout.lane] = end;
-  });
-  const laneCount = Math.max(1, laneEnds.length);
+  const layouts = assignOverlapColumns(timedEvents);
   const layer = $('#timed-event-layer');
   layer.replaceChildren();
   timedEvents.forEach((event) => {
     const item = makeEventChip(event);
-    const { start, end, lane } = event._layout;
+    const { start, end, lane, laneCount, columns } = layouts.get(event);
     item.classList.add('timeline-event');
     item.style.top = `${start / 60 * 64 + 3}px`;
     item.style.height = `${Math.max(34, (end - start) / 60 * 64 - 6)}px`;
     item.style.left = `calc(${lane * 100 / laneCount}% + 4px)`;
-    item.style.width = `calc(${100 / laneCount}% - 8px)`;
+    item.style.width = `calc(${columns * 100 / laneCount}% - 8px)`;
     layer.append(item);
-    delete event._layout;
   });
   if ($('#day-scroll').dataset.date !== state.selectedDate) {
     $('#day-scroll').scrollTop = 6 * 64;
     $('#day-scroll').dataset.date = state.selectedDate;
   }
+}
+function assignOverlapColumns(events) {
+  const sorted = events.map((event) => {
+    const start = timeToMinutes(event.start_time);
+    let end = event.end_time ? timeToMinutes(event.end_time) : start + 60;
+    if (end <= start) end = start + 60;
+    return { event, start, end };
+  }).sort((a, b) => a.start - b.start || a.end - b.end);
+  const groups = [];
+  let group = [];
+  let groupEnd = -1;
+  sorted.forEach((item) => {
+    if (group.length && item.start >= groupEnd) {
+      groups.push(group); group = []; groupEnd = -1;
+    }
+    group.push(item); groupEnd = Math.max(groupEnd, item.end);
+  });
+  if (group.length) groups.push(group);
+
+  groups.forEach((items) => {
+    const laneEnds = [];
+    items.forEach((item) => {
+      let lane = laneEnds.findIndex((end) => end <= item.start);
+      if (lane < 0) lane = laneEnds.length;
+      laneEnds[lane] = item.end;
+      item.lane = lane;
+    });
+    const laneCount = laneEnds.length;
+    items.forEach((item) => {
+      let columns = 1;
+      for (let lane = item.lane + 1; lane < laneCount; lane += 1) {
+        const blocked = items.some((other) => other.lane === lane && item.start < other.end && other.start < item.end);
+        if (blocked) break;
+        columns += 1;
+      }
+      item.laneCount = laneCount;
+      item.columns = columns;
+    });
+  });
+  return new Map(sorted.map((item) => [item.event, item]));
 }
 function timeToMinutes(value) {
   const [hours, minutes] = value.split(':').map(Number);
@@ -311,6 +341,7 @@ function renderAgenda() {
   } else allDayEvents.forEach((event) => allDay.append(makeAgendaItem(event)));
 
   const hours = $('#agenda-hours'); hours.replaceChildren();
+  const timedEvents = eventsForDay.filter((event) => event.start_time);
   for (let hour = 0; hour < 24; hour += 1) {
     const row = document.createElement('div'); row.className = 'agenda-hour-row';
     const label = document.createElement('span'); label.className = 'agenda-hour-label'; label.textContent = `${String(hour).padStart(2, '0')}:00`;
@@ -320,10 +351,25 @@ function renderAgenda() {
     const create = () => openDialog(state.selectedDate, null, `${String(hour).padStart(2, '0')}:00`);
     slot.addEventListener('click', create);
     slot.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); create(); } });
-    eventsForDay.filter((event) => event.start_time && Number(event.start_time.slice(0, 2)) === hour)
-      .forEach((event) => slot.append(makeAgendaItem(event)));
     row.append(label, slot); hours.append(row);
   }
+
+  const hourHeight = Number.parseFloat(getComputedStyle(hours).getPropertyValue('--agenda-hour-height')) || 42;
+  const layouts = assignOverlapColumns(timedEvents);
+  const layer = document.createElement('div'); layer.className = 'agenda-timed-event-layer';
+  timedEvents.forEach((event) => {
+    const item = makeAgendaItem(event);
+    const { start, end, lane, laneCount, columns } = layouts.get(event);
+    const duration = end - start;
+    item.classList.add('agenda-timed-event');
+    if (duration < 60) item.classList.add('agenda-short-event');
+    item.style.top = `${start / 60 * hourHeight + 2}px`;
+    item.style.height = `${Math.max(16, duration / 60 * hourHeight - 4)}px`;
+    item.style.left = `calc(${lane * 100 / laneCount}% + 3px)`;
+    item.style.width = `calc(${columns * 100 / laneCount}% - 6px)`;
+    layer.append(item);
+  });
+  hours.append(layer);
   if ($('#agenda-scroll').dataset.date !== state.selectedDate) {
     $('#agenda-scroll').scrollTop = 0;
     $('#agenda-scroll').dataset.date = state.selectedDate;
