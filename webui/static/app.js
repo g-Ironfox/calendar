@@ -145,18 +145,39 @@ function renderMonthGrid(selector, selectingOnly) {
 function renderAgenda() {
   const date = new Date(`${state.selectedDate}T12:00:00`);
   $('#agenda-date').textContent = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(date);
-  const list = $('#agenda-list'); list.replaceChildren();
   const eventsForDay = visibleEvents(state.selectedDate).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
-  if (!eventsForDay.length) {
-    const empty = document.createElement('p'); empty.className = 'agenda-empty'; empty.textContent = '这一天还没有日程'; list.append(empty); return;
+  const allDay = $('#agenda-all-day-events'); allDay.replaceChildren();
+  const allDayEvents = eventsForDay.filter((event) => !event.start_time);
+  if (!allDayEvents.length) {
+    const empty = document.createElement('span'); empty.className = 'agenda-time-empty'; empty.textContent = '无'; allDay.append(empty);
+  } else allDayEvents.forEach((event) => allDay.append(makeAgendaItem(event)));
+
+  const hours = $('#agenda-hours'); hours.replaceChildren();
+  for (let hour = 0; hour < 24; hour += 1) {
+    const row = document.createElement('div'); row.className = 'agenda-hour-row';
+    const label = document.createElement('span'); label.className = 'agenda-hour-label'; label.textContent = `${String(hour).padStart(2, '0')}:00`;
+    const slot = document.createElement('div'); slot.className = 'agenda-hour-slot';
+    slot.setAttribute('role', 'button'); slot.setAttribute('tabindex', '0');
+    slot.setAttribute('aria-label', `${state.selectedDate} ${String(hour).padStart(2, '0')}:00 新建日程`);
+    const create = () => openDialog(state.selectedDate, null, `${String(hour).padStart(2, '0')}:00`);
+    slot.addEventListener('click', create);
+    slot.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); create(); } });
+    eventsForDay.filter((event) => event.start_time && Number(event.start_time.slice(0, 2)) === hour)
+      .forEach((event) => slot.append(makeAgendaItem(event)));
+    row.append(label, slot); hours.append(row);
   }
-  eventsForDay.forEach((event) => {
-    const item = document.createElement('button');
-    item.type = 'button'; item.className = `agenda-item ${event.color}`;
-    const time = event.start_time ? `${event.start_time}${event.end_time ? ` - ${event.end_time}` : ''}` : '全天';
-    item.innerHTML = `<span class="agenda-time">${escapeHtml(time)}</span><span class="agenda-title">${escapeHtml(event.title)}</span>${event.notes ? `<span class="agenda-notes">${escapeHtml(event.notes)}</span>` : ''}`;
-    item.addEventListener('click', () => openDialog(event.date, event)); list.append(item);
-  });
+  if ($('#agenda-scroll').dataset.date !== state.selectedDate) {
+    $('#agenda-scroll').scrollTop = 0;
+    $('#agenda-scroll').dataset.date = state.selectedDate;
+  }
+}
+function makeAgendaItem(event) {
+  const item = document.createElement('button');
+  item.type = 'button'; item.className = `agenda-item ${event.color}`;
+  const time = event.start_time ? `${event.start_time}${event.end_time ? ` - ${event.end_time}` : ''}` : '全天';
+  item.innerHTML = `<span class="agenda-time">${escapeHtml(time)}</span><span class="agenda-title">${escapeHtml(event.title)}</span>${event.notes ? `<span class="agenda-notes">${escapeHtml(event.notes)}</span>` : ''}`;
+  item.addEventListener('click', (e) => { e.stopPropagation(); openDialog(event.date, event); });
+  return item;
 }
 function renderMini() {
   $('#mini-title').textContent = `${state.miniYear}年 ${monthNames[state.miniMonth]}`;
