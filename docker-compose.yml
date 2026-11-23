@@ -1,0 +1,34 @@
+services:
+  webui:
+    build: ./webui
+    container_name: calendar_webui
+    ports:
+      - "${WEB_PORT:-8987}:8000"
+    volumes:
+      - ./asset:/assets:ro
+    environment:
+      ASSET_DIR: /assets
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DATABASE: calendar
+      TZ: ${TZ:-Asia/Shanghai}
+      LLM_API_BASE: ${LLM_API_BASE:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:8
+    container_name: calendar_mongo
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
