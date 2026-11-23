@@ -20,10 +20,11 @@
       <div class="sidebar-rule"></div>
       <section class="calendars">
         <h2>我的日历</h2>
-        <label><input type="checkbox" checked data-filter="blue"><i class="dot blue"></i>个人</label>
-        <label><input type="checkbox" checked data-filter="green"><i class="dot green"></i>工作</label>
-        <label><input type="checkbox" checked data-filter="orange"><i class="dot orange"></i>重要日期</label>
-        <label><input type="checkbox" checked data-filter="pink"><i class="dot pink"></i>生活</label>
+        <label class="calendar-row"><input type="checkbox" checked data-filter="blue"><button type="button" class="dot blue" data-palette-toggle="blue" aria-label="自定义个人日历颜色" title="自定义颜色"></button><span>个人</span><div class="color-palette hidden" data-palette="blue" role="group" aria-label="个人日历配色"></div></label>
+        <label class="calendar-row"><input type="checkbox" checked data-filter="green"><button type="button" class="dot green" data-palette-toggle="green" aria-label="自定义工作日历颜色" title="自定义颜色"></button><span>工作</span><div class="color-palette hidden" data-palette="green" role="group" aria-label="工作日历配色"></div></label>
+        <label class="calendar-row"><input type="checkbox" checked data-filter="orange"><button type="button" class="dot orange" data-palette-toggle="orange" aria-label="自定义重要日期日历颜色" title="自定义颜色"></button><span>重要日期</span><div class="color-palette hidden" data-palette="orange" role="group" aria-label="重要日期日历配色"></div></label>
+        <label class="calendar-row"><input type="checkbox" checked data-filter="pink"><button type="button" class="dot pink" data-palette-toggle="pink" aria-label="自定义生活日历颜色" title="自定义颜色"></button><span>生活</span><div class="color-palette hidden" data-palette="pink" role="group" aria-label="生活日历配色"></div></label>
+        <label class="calendar-row"><input type="checkbox" checked data-filter="purple"><button type="button" class="dot purple" data-palette-toggle="purple" aria-label="自定义其他日历颜色" title="自定义颜色"></button><span>其他</span><div class="color-palette hidden" data-palette="purple" role="group" aria-label="其他日历配色"></div></label>
       </section>
       <div class="sidebar-bottom"><span class="avatar">林</span><span class="profile"><b>林知夏</b><small>个人空间</small></span><button class="icon-button more" aria-label="更多选项">···</button></div>
     </aside>

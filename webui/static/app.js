@@ -3,7 +3,53 @@ const today = new Date();
 const state = { year: today.getFullYear(), month: today.getMonth(), miniYear: today.getFullYear(), miniMonth: today.getMonth(), selectedDate: formatDate(today), view: 'month', events: [], editingId: null, enabledColors: new Set(['blue', 'green', 'orange', 'pink', 'purple']) };
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
 const colorNames = { blue: '个人', green: '工作', orange: '重要日期', pink: '生活', purple: '其他' };
+const defaultColors = { blue: '#5684E8', green: '#45A783', orange: '#E29A43', pink: '#D96884', purple: '#9071C8' };
+const colorPresets = ['#5684E8', '#3478C8', '#35A783', '#21A69A', '#E29A43', '#D97836', '#D96884', '#BE5E9B', '#9071C8', '#685CB5', '#65758B', '#3C8C78'];
+const savedColors = (() => { try { return JSON.parse(localStorage.getItem('dayline-calendar-colors') || '{}'); } catch { return {}; } })();
+const calendarColors = { ...defaultColors, ...Object.fromEntries(Object.entries(savedColors).filter(([key, value]) => key in defaultColors && /^#[0-9a-f]{6}$/i.test(value))) };
 
+function applyCalendarColor(category, color, persist = false) {
+  calendarColors[category] = color;
+  document.documentElement.style.setProperty(`--calendar-${category}`, color);
+  document.querySelector(`[data-palette-toggle="${category}"]`).style.backgroundColor = color;
+  document.querySelectorAll(`[data-palette="${category}"] .palette-swatch`).forEach((swatch) => {
+    swatch.setAttribute('aria-pressed', String(swatch.dataset.color.toLowerCase() === color.toLowerCase()));
+  });
+  document.querySelectorAll(`.event-chip.${category}, .agenda-item.${category}`).forEach((event) => {
+    event.style.setProperty('--event-color', color);
+    event.style.setProperty('--event-tint', `color-mix(in srgb, ${color} 14%, white)`);
+  });
+  if (persist) localStorage.setItem('dayline-calendar-colors', JSON.stringify(calendarColors));
+}
+function setupColorPalettes() {
+  Object.entries(defaultColors).forEach(([category, color]) => {
+    const palette = document.querySelector(`[data-palette="${category}"]`);
+    colorPresets.forEach((preset) => {
+      const swatch = document.createElement('button');
+      swatch.type = 'button'; swatch.className = 'palette-swatch'; swatch.dataset.color = preset;
+      swatch.style.backgroundColor = preset; swatch.setAttribute('aria-label', `${preset} 配色`);
+      swatch.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); applyCalendarColor(category, preset, true); });
+      palette.append(swatch);
+    });
+    const custom = document.createElement('div'); custom.className = 'custom-color'; custom.title = '选择自定义颜色';
+    custom.innerHTML = '<span aria-hidden="true">＋</span><input type="color" aria-label="自定义颜色">';
+    const picker = custom.querySelector('input'); picker.value = calendarColors[category];
+    picker.addEventListener('click', (event) => event.stopPropagation());
+    picker.addEventListener('input', () => applyCalendarColor(category, picker.value, true));
+    custom.addEventListener('click', (event) => event.stopPropagation());
+    palette.append(custom);
+    const toggle = document.querySelector(`[data-palette-toggle="${category}"]`);
+    toggle.addEventListener('click', (event) => {
+      event.preventDefault(); event.stopPropagation();
+      document.querySelectorAll('.color-palette').forEach((other) => { if (other !== palette) other.classList.add('hidden'); });
+      palette.classList.toggle('hidden');
+    });
+    applyCalendarColor(category, calendarColors[category]);
+  });
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.calendar-row')) document.querySelectorAll('.color-palette').forEach((palette) => palette.classList.add('hidden'));
+  });
+}
 function formatDate(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 function monthBounds(year, month) {
   const first = new Date(year, month, 1);
@@ -105,6 +151,8 @@ function timeToMinutes(value) {
 function makeEventChip(event) {
   const item = document.createElement('button');
   item.type = 'button'; item.className = `event-chip ${event.color}`;
+  item.style.setProperty('--event-color', calendarColors[event.color] || defaultColors.blue);
+  item.style.setProperty('--event-tint', `color-mix(in srgb, ${calendarColors[event.color] || defaultColors.blue} 14%, white)`);
   item.innerHTML = `<span class="event-time">${event.start_time ? `${escapeHtml(event.start_time)} ` : ''}</span>${escapeHtml(event.title)}`;
   item.title = `${event.title}${event.notes ? ` · ${event.notes}` : ''}`;
   item.addEventListener('click', (e) => { e.stopPropagation(); openDialog(event.date, event); });
@@ -174,6 +222,8 @@ function renderAgenda() {
 function makeAgendaItem(event) {
   const item = document.createElement('button');
   item.type = 'button'; item.className = `agenda-item ${event.color}`;
+  item.style.setProperty('--event-color', calendarColors[event.color] || defaultColors.blue);
+  item.style.setProperty('--event-tint', `color-mix(in srgb, ${calendarColors[event.color] || defaultColors.blue} 14%, white)`);
   const time = event.start_time ? `${event.start_time}${event.end_time ? ` - ${event.end_time}` : ''}` : '全天';
   item.innerHTML = `<span class="agenda-time">${escapeHtml(time)}</span><span class="agenda-title">${escapeHtml(event.title)}</span>${event.notes ? `<span class="agenda-notes">${escapeHtml(event.notes)}</span>` : ''}`;
   item.addEventListener('click', (e) => { e.stopPropagation(); openDialog(event.date, event); });
@@ -273,4 +323,5 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowLeft') navigatePeriod(-1);
   if (event.key === 'ArrowRight') navigatePeriod(1);
 });
+setupColorPalettes();
 render(); loadEvents();
