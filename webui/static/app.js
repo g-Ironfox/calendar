@@ -311,7 +311,7 @@ function renderAgenda() {
   });
   hours.append(layer);
   if ($('#agenda-scroll').dataset.date !== state.selectedDate) {
-    $('#agenda-scroll').scrollTop = 0;
+    $('#agenda-scroll').scrollTop = hours.offsetTop + 8 * hourHeight;
     $('#agenda-scroll').dataset.date = state.selectedDate;
   }
 }
