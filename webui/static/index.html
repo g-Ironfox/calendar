@@ -30,9 +30,10 @@
     <main class="main-content">
       <header class="topbar">
         <div class="heading-group"><span class="eyebrow" id="today-label"></span><h1 id="month-heading"></h1></div>
-        <div class="toolbar"><button class="today-button" id="go-today">今天</button><div class="month-nav"><button class="icon-button" id="prev-month" aria-label="上个月">‹</button><button class="icon-button" id="next-month" aria-label="下个月">›</button></div><span class="toolbar-divider"></span><button class="view-select" aria-label="日历视图">月视图 <span>⌄</span></button></div>
+        <div class="toolbar"><button class="today-button" id="go-today">今天</button><div class="month-nav"><button class="icon-button" id="prev-month" aria-label="上个月">‹</button><button class="icon-button" id="next-month" aria-label="下个月">›</button></div><span class="toolbar-divider"></span><select class="view-select" id="view-select" aria-label="日历视图"><option value="month">月视图</option><option value="day">日视图</option></select></div>
       </header>
-      <section class="calendar" aria-label="月历"><div class="weekday-row"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div><div class="month-grid" id="month-grid"></div></section>
+      <section class="calendar" id="month-view" aria-label="月历"><div class="weekday-row"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div><div class="month-grid" id="month-grid"></div></section>
+      <section class="day-view hidden" id="day-view" aria-label="日视图"><div class="all-day-row"><div class="all-day-label">全天</div><div class="all-day-events" id="all-day-events"></div></div><div class="day-scroll" id="day-scroll"><div class="time-grid" id="time-grid"></div><div class="timed-event-layer" id="timed-event-layer"></div></div></section>
     </main>
   </div>
   <dialog id="event-dialog">
