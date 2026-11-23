@@ -37,10 +37,18 @@
   </div>
   <dialog id="category-dialog">
     <form id="category-form">
-      <div class="dialog-header"><div><p class="eyebrow">我的日历</p><h2>新增类型</h2></div><button type="button" class="icon-button close-button" id="close-category-dialog" aria-label="关闭">×</button></div>
+      <div class="dialog-header"><div><p class="eyebrow">我的日历</p><h2 id="category-dialog-title">新增类型</h2></div><button type="button" class="icon-button close-button" id="close-category-dialog" aria-label="关闭">×</button></div>
       <label class="field-label" for="category-name">类型名称</label><input class="text-input title-input" id="category-name" name="name" maxlength="24" placeholder="例如：学习、运动" required>
       <label class="field-label" for="category-color">标记颜色</label><input class="category-color-input" id="category-color" name="color" type="color" value="#5684E8">
       <div class="dialog-footer"><span class="form-error" id="category-error" role="alert"></span><button class="save-button" type="submit">创建类型</button></div>
+    </form>
+  </dialog>
+  <dialog id="category-delete-dialog">
+    <form id="category-delete-form">
+      <div class="dialog-header"><div><p class="eyebrow">删除类型</p><h2 id="category-delete-title"></h2></div><button type="button" class="icon-button close-button" id="close-category-delete" aria-label="关闭">×</button></div>
+      <p class="delete-category-summary" id="category-delete-summary"></p>
+      <div id="category-migration-field"><label class="field-label" for="category-replacement">将关联日程迁移到</label><select class="text-input" id="category-replacement"></select></div>
+      <div class="dialog-footer"><span class="form-error" id="category-delete-error" role="alert"></span><button class="delete-button" type="submit">删除类型并迁移</button></div>
     </form>
   </dialog>
   <dialog id="event-dialog">

@@ -1,19 +1,17 @@
 const $ = (selector) => document.querySelector(selector);
 const today = new Date();
-const state = { year: today.getFullYear(), month: today.getMonth(), miniYear: today.getFullYear(), miniMonth: today.getMonth(), selectedDate: formatDate(today), view: 'month', events: [], editingId: null, enabledColors: new Set(['blue', 'green', 'orange', 'pink', 'purple']) };
+const state = { year: today.getFullYear(), month: today.getMonth(), miniYear: today.getFullYear(), miniMonth: today.getMonth(), selectedDate: formatDate(today), view: 'month', events: [], editingId: null, enabledColors: new Set() };
 const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-const colorNames = { blue: '个人', green: '工作', orange: '重要日期', pink: '生活', purple: '其他' };
+const colorNames = {};
 const defaultColors = { blue: '#5684E8', green: '#45A783', orange: '#E29A43', pink: '#D96884', purple: '#9071C8' };
-const defaultCategories = [
-  { id: 'blue', name: '个人' }, { id: 'green', name: '工作' }, { id: 'orange', name: '重要日期' },
-  { id: 'pink', name: '生活' }, { id: 'purple', name: '其他' },
-];
 const colorPresets = ['#5684E8', '#3478C8', '#35A783', '#21A69A', '#E29A43', '#D97836', '#D96884', '#BE5E9B', '#9071C8', '#685CB5', '#65758B', '#3C8C78'];
 const savedColors = (() => { try { const value = JSON.parse(localStorage.getItem('dayline-calendar-colors') || '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch { return {}; } })();
 const savedCategories = (() => { try { const value = JSON.parse(localStorage.getItem('dayline-calendar-categories') || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } })();
-const calendarCategories = [...defaultCategories, ...savedCategories.filter((item) => item && /^custom-[a-z0-9-]{1,32}$/.test(item.id) && typeof item.name === 'string' && item.name.trim()).map((item) => ({ id: item.id, name: item.name.trim().slice(0, 24) }))];
-const calendarColors = { ...defaultColors, ...Object.fromEntries(Object.entries(savedColors).filter(([key, value]) => /^[a-z][a-z0-9_-]{0,39}$/.test(key) && /^#[0-9a-f]{6}$/i.test(value))) };
-calendarCategories.forEach((category) => { colorNames[category.id] = category.name; state.enabledColors.add(category.id); });
+const calendarCategories = [];
+const calendarColors = { ...defaultColors };
+const colorSaveTimers = new Map();
+let editingCategoryId = null;
+let deletingCategoryId = null;
 
 function applyCalendarColor(category, color, persist = false) {
   calendarColors[category] = color;
@@ -26,26 +24,88 @@ function applyCalendarColor(category, color, persist = false) {
     event.style.setProperty('--event-color', color);
     event.style.setProperty('--event-tint', `color-mix(in srgb, ${color} 14%, white)`);
   });
-  if (persist) localStorage.setItem('dayline-calendar-colors', JSON.stringify(calendarColors));
+  if (persist) {
+    localStorage.setItem('dayline-calendar-colors', JSON.stringify(calendarColors));
+    const categoryInfo = calendarCategories.find((item) => item.id === category);
+    if (categoryInfo) {
+      window.clearTimeout(colorSaveTimers.get(category));
+      colorSaveTimers.set(category, window.setTimeout(() => fetch(`/api/categories/${encodeURIComponent(category)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: categoryInfo.name, color }),
+      }).catch(() => showToast('颜色已保存在本机，暂未同步到服务器')), 300));
+    }
+  }
 }
-function saveCategories() {
-  localStorage.setItem('dayline-calendar-categories', JSON.stringify(calendarCategories.filter((category) => category.id.startsWith('custom-'))));
+async function refreshCategories() {
+  const response = await fetch('/api/categories');
+  if (!response.ok) throw new Error('类型加载失败');
+  const items = await response.json();
+  const previousIds = new Set(calendarCategories.map((category) => category.id));
+  calendarCategories.splice(0, calendarCategories.length, ...items);
+  const activeIds = new Set(items.map((category) => category.id));
+  [...state.enabledColors].forEach((id) => { if (previousIds.has(id) && !activeIds.has(id)) state.enabledColors.delete(id); });
+  items.forEach((category) => {
+    colorNames[category.id] = category.name;
+    calendarColors[category.id] = category.color;
+    state.enabledColors.add(category.id);
+  });
+  setupColorPalettes();
+}
+async function initializeCategories() {
+  try {
+    let response = await fetch('/api/categories');
+    if (!response.ok) throw new Error('类型加载失败');
+    let existing = await response.json();
+    const existingIds = new Set(existing.map((category) => category.id));
+    for (const legacy of savedCategories) {
+      if (!legacy || !/^custom-[a-z0-9-]{1,32}$/.test(legacy.id) || !legacy.name || existingIds.has(legacy.id)) continue;
+      const result = await fetch('/api/categories', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: legacy.id, name: legacy.name.trim().slice(0, 24), color: savedColors[legacy.id] || colorPresets[0] }),
+      });
+      if (result.ok) existingIds.add(legacy.id);
+    }
+    if (localStorage.getItem('dayline-category-colors-migrated') !== '1') {
+      for (const category of existing) {
+        const oldColor = savedColors[category.id];
+        if (!oldColor || !/^#[0-9a-f]{6}$/i.test(oldColor) || oldColor.toUpperCase() === category.color.toUpperCase()) continue;
+        await fetch(`/api/categories/${encodeURIComponent(category.id)}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: category.name, color: oldColor }),
+        });
+      }
+      localStorage.setItem('dayline-category-colors-migrated', '1');
+    }
+    await refreshCategories();
+    localStorage.removeItem('dayline-calendar-categories');
+    render();
+    await loadEvents();
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 function renderCategoryOptions() {
   const select = $('#event-color');
   const selected = select.value;
   select.replaceChildren();
+  if (!calendarCategories.length) {
+    const option = document.createElement('option'); option.value = ''; option.textContent = '请先新增类型'; option.disabled = true; select.append(option);
+  }
   calendarCategories.forEach((category) => {
     const option = document.createElement('option'); option.value = category.id; option.textContent = category.name; select.append(option);
   });
-  select.value = calendarCategories.some((category) => category.id === selected) ? selected : calendarCategories[0].id;
+  select.value = calendarCategories.some((category) => category.id === selected) ? selected : (calendarCategories[0]?.id || '');
 }
 function setupColorPalettes() {
   document.querySelectorAll('.color-palette').forEach((palette) => palette.remove());
   const container = $('#category-list'); container.replaceChildren();
+  if (!calendarCategories.length) {
+    const empty = document.createElement('p'); empty.className = 'category-empty'; empty.textContent = '还没有类型'; container.append(empty);
+  }
   calendarCategories.forEach((category) => {
-    const row = document.createElement('label'); row.className = 'calendar-row';
+    const row = document.createElement('div'); row.className = 'calendar-row';
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = state.enabledColors.has(category.id); checkbox.dataset.filter = category.id;
+    checkbox.setAttribute('aria-label', `显示${category.name}日程`);
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) state.enabledColors.add(category.id); else state.enabledColors.delete(category.id);
       render();
@@ -53,9 +113,17 @@ function setupColorPalettes() {
     const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = `dot ${category.id}`;
     toggle.dataset.paletteToggle = category.id; toggle.setAttribute('aria-label', `自定义${category.name}颜色`); toggle.title = '自定义颜色';
     const name = document.createElement('span'); name.textContent = category.name;
+    name.addEventListener('click', () => { checkbox.checked = !checkbox.checked; checkbox.dispatchEvent(new Event('change')); });
+    const actions = document.createElement('div'); actions.className = 'category-actions';
+    const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'category-action'; edit.textContent = '✎';
+    edit.title = '编辑类型'; edit.setAttribute('aria-label', `编辑${category.name}`);
+    edit.addEventListener('click', () => openCategoryEditor(category)); actions.append(edit);
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'category-action delete-category-action'; remove.textContent = '×';
+    remove.title = '删除类型'; remove.setAttribute('aria-label', `删除${category.name}`);
+    remove.addEventListener('click', () => openCategoryDelete(category)); actions.append(remove);
     const palette = document.createElement('div'); palette.className = 'color-palette hidden'; palette.dataset.palette = category.id;
     palette.setAttribute('role', 'group'); palette.setAttribute('aria-label', `${category.name}配色`);
-    row.append(checkbox, toggle, name, palette); container.append(row);
+    row.append(checkbox, toggle, name, actions, palette); container.append(row);
     colorPresets.forEach((preset) => {
       const swatch = document.createElement('button'); swatch.type = 'button'; swatch.className = 'palette-swatch';
       swatch.dataset.color = preset; swatch.style.backgroundColor = preset; swatch.setAttribute('aria-label', `${preset} 配色`);
@@ -307,6 +375,7 @@ function shiftDate(amount) {
 }
 function navigatePeriod(amount) { state.view === 'day' ? shiftDate(amount) : shiftMonth(amount); }
 function openDialog(date = state.selectedDate, event = null, startTime = '') {
+  if (!calendarCategories.length) { showToast('请先新增一个日历类型'); return; }
   state.editingId = event?.id ?? null;
   $('#event-form').reset(); $('#form-error').textContent = '';
   $('#event-date').value = date; $('#event-color').value = event?.color || 'blue';
@@ -318,30 +387,78 @@ function openDialog(date = state.selectedDate, event = null, startTime = '') {
   $('#event-dialog').showModal();
   $('#event-title').focus();
 }
+function openCategoryEditor(category = null) {
+  editingCategoryId = category?.id || null;
+  $('#category-form').reset(); $('#category-error').textContent = '';
+  $('#category-name').value = category?.name || '';
+  $('#category-color').value = category?.color || colorPresets[Math.floor(Math.random() * 5)];
+  $('#category-dialog-title').textContent = category ? '编辑类型' : '新增类型';
+  $('#category-form button[type=submit]').textContent = category ? '保存修改' : '创建类型';
+  $('#category-dialog').showModal(); $('#category-name').focus();
+}
+function openCategoryDelete(category) {
+  deletingCategoryId = category.id;
+  $('#category-delete-form').reset(); $('#category-delete-error').textContent = '';
+  $('#category-delete-title').textContent = `删除“${category.name}”`;
+  $('#category-delete-summary').textContent = category.event_count
+    ? `此类型关联了 ${category.event_count} 个日程，删除前请选择迁移目标。`
+    : '此类型目前没有关联日程。';
+  const select = $('#category-replacement'); select.replaceChildren();
+  calendarCategories.filter((item) => item.id !== category.id).forEach((item) => {
+    const option = document.createElement('option'); option.value = item.id; option.textContent = item.name; select.append(option);
+  });
+  $('#category-migration-field').classList.toggle('hidden', !category.event_count);
+  $('#category-delete-form button[type=submit]').textContent = category.event_count ? '删除并迁移日程' : '删除类型';
+  $('#category-delete-dialog').showModal();
+}
 function showToast(message) {
   const toast = $('#toast'); toast.textContent = message; toast.classList.add('visible');
   window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('visible'), 2600);
 }
 
 $('#create-event').addEventListener('click', () => openDialog(state.selectedDate || formatDate(today)));
-$('#add-category').addEventListener('click', () => { $('#category-form').reset(); $('#category-error').textContent = ''; $('#category-color').value = colorPresets[Math.floor(Math.random() * 5)]; $('#category-dialog').showModal(); $('#category-name').focus(); });
+$('#add-category').addEventListener('click', () => openCategoryEditor());
 $('#close-category-dialog').addEventListener('click', () => $('#category-dialog').close());
 $('#category-dialog').addEventListener('click', (event) => { if (event.target === $('#category-dialog')) $('#category-dialog').close(); });
-$('#category-form').addEventListener('submit', (event) => {
+$('#category-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const name = $('#category-name').value.trim();
+  const color = $('#category-color').value;
   $('#category-error').textContent = '';
   if (!name) { $('#category-error').textContent = '请填写类型名称'; return; }
-  if (calendarCategories.some((category) => category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+  if (calendarCategories.some((category) => category.id !== editingCategoryId && category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
     $('#category-error').textContent = '这个类型名称已存在'; return;
   }
-  const id = `custom-${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`;
-  calendarCategories.push({ id, name });
-  calendarColors[id] = $('#category-color').value;
-  colorNames[id] = name; state.enabledColors.add(id);
-  saveCategories(); localStorage.setItem('dayline-calendar-colors', JSON.stringify(calendarColors));
-  setupColorPalettes();
-  $('#category-dialog').close(); render();
+  const url = editingCategoryId ? `/api/categories/${encodeURIComponent(editingCategoryId)}` : '/api/categories';
+  try {
+    const response = await fetch(url, {
+      method: editingCategoryId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, color }),
+    });
+    if (!response.ok) {
+      const detail = await response.json();
+      throw new Error(detail.detail || '保存类型失败');
+    }
+    $('#category-dialog').close();
+    await refreshCategories(); render(); await loadEvents();
+    showToast(editingCategoryId ? '类型已更新' : '类型已创建');
+  } catch (error) { $('#category-error').textContent = error.message; }
+});
+$('#close-category-delete').addEventListener('click', () => $('#category-delete-dialog').close());
+$('#category-delete-dialog').addEventListener('click', (event) => { if (event.target === $('#category-delete-dialog')) $('#category-delete-dialog').close(); });
+$('#category-delete-form').addEventListener('submit', async (event) => {
+  event.preventDefault(); $('#category-delete-error').textContent = '';
+  const replacement = $('#category-replacement').value;
+  const query = replacement ? `?replacement_id=${encodeURIComponent(replacement)}` : '';
+  try {
+    const response = await fetch(`/api/categories/${encodeURIComponent(deletingCategoryId)}${query}`, { method: 'DELETE' });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || '删除类型失败');
+    $('#category-delete-dialog').close();
+    state.enabledColors.delete(deletingCategoryId);
+    await refreshCategories(); render(); await loadEvents();
+    showToast(result.migrated_events ? `类型已删除，${result.migrated_events} 个日程已迁移` : '类型已删除');
+  } catch (error) { $('#category-delete-error').textContent = error.message; }
 });
 $('#close-dialog').addEventListener('click', () => $('#event-dialog').close());
 $('#event-dialog').addEventListener('click', (event) => { if (event.target === $('#event-dialog')) $('#event-dialog').close(); });
@@ -384,4 +501,5 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowRight') navigatePeriod(1);
 });
 setupColorPalettes();
-render(); loadEvents();
+render();
+initializeCategories();
