@@ -26,7 +26,9 @@ async function loadEvents() {
 }
 function render() {
   const isDay = state.view === 'day';
-  $('#month-view').classList.toggle('hidden', isDay);
+  const isMonthDay = state.view === 'month-day';
+  $('#month-view').classList.toggle('hidden', isDay || isMonthDay);
+  $('#month-day-view').classList.toggle('hidden', !isMonthDay);
   $('#day-view').classList.toggle('hidden', !isDay);
   $('#view-select').value = state.view;
   $('#prev-month').setAttribute('aria-label', isDay ? '前一天' : '上个月');
@@ -40,7 +42,10 @@ function render() {
   } else {
     $('#month-heading').textContent = `${state.year}年 ${monthNames[state.month]}`;
     $('#today-label').textContent = new Intl.DateTimeFormat('zh-CN', { weekday: 'long', month: 'long', day: 'numeric' }).format(today);
-    renderMonth();
+    if (isMonthDay) {
+      renderMonthGrid('#month-day-grid', true);
+      renderAgenda();
+    } else renderMonth();
   }
 }
 function visibleEvents(date) { return state.events.filter((event) => event.date === date && state.enabledColors.has(event.color)); }
@@ -105,10 +110,11 @@ function makeEventChip(event) {
   item.addEventListener('click', (e) => { e.stopPropagation(); openDialog(event.date, event); });
   return item;
 }
-function renderMonth() {
+function renderMonth() { renderMonthGrid('#month-grid', false); }
+function renderMonthGrid(selector, selectingOnly) {
   const [start] = monthBounds(state.year, state.month);
   const startDate = new Date(`${start}T12:00:00`);
-  const grid = $('#month-grid');
+  const grid = $(selector);
   grid.replaceChildren();
   for (let i = 0; i < 42; i += 1) {
     const date = new Date(startDate); date.setDate(startDate.getDate() + i);
@@ -118,17 +124,39 @@ function renderMonth() {
     cell.dataset.date = key;
     const dayNumber = document.createElement('button');
     dayNumber.type = 'button'; dayNumber.className = 'day-number'; dayNumber.textContent = date.getDate();
-    dayNumber.setAttribute('aria-label', `${key}，新建日程`);
-    dayNumber.addEventListener('click', () => openDialog(key));
+    dayNumber.setAttribute('aria-label', selectingOnly ? `查看 ${key} 日程` : `${key}，新建日程`);
+    dayNumber.addEventListener('click', () => {
+      if (selectingOnly) {
+        state.selectedDate = key; state.year = date.getFullYear(); state.month = date.getMonth();
+        state.miniYear = state.year; state.miniMonth = state.month;
+        loadEvents();
+      } else openDialog(key);
+    });
     cell.append(dayNumber);
     const list = document.createElement('div'); list.className = 'day-events';
-    visibleEvents(key).slice(0, 3).forEach((event) => list.append(makeEventChip(event)));
-    const remaining = visibleEvents(key).length - 3;
+    visibleEvents(key).slice(0, selectingOnly ? 2 : 3).forEach((event) => list.append(makeEventChip(event)));
+    const remaining = visibleEvents(key).length - (selectingOnly ? 2 : 3);
     if (remaining > 0) { const more = document.createElement('span'); more.className = 'more-events'; more.textContent = `+${remaining} 个`; list.append(more); }
     cell.append(list);
-    cell.addEventListener('dblclick', () => openDialog(key));
+    cell.addEventListener('dblclick', () => selectingOnly ? (state.selectedDate = key, loadEvents()) : openDialog(key));
     grid.append(cell);
   }
+}
+function renderAgenda() {
+  const date = new Date(`${state.selectedDate}T12:00:00`);
+  $('#agenda-date').textContent = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(date);
+  const list = $('#agenda-list'); list.replaceChildren();
+  const eventsForDay = visibleEvents(state.selectedDate).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+  if (!eventsForDay.length) {
+    const empty = document.createElement('p'); empty.className = 'agenda-empty'; empty.textContent = '这一天还没有日程'; list.append(empty); return;
+  }
+  eventsForDay.forEach((event) => {
+    const item = document.createElement('button');
+    item.type = 'button'; item.className = `agenda-item ${event.color}`;
+    const time = event.start_time ? `${event.start_time}${event.end_time ? ` - ${event.end_time}` : ''}` : '全天';
+    item.innerHTML = `<span class="agenda-time">${escapeHtml(time)}</span><span class="agenda-title">${escapeHtml(event.title)}</span>${event.notes ? `<span class="agenda-notes">${escapeHtml(event.notes)}</span>` : ''}`;
+    item.addEventListener('click', () => openDialog(event.date, event)); list.append(item);
+  });
 }
 function renderMini() {
   $('#mini-title').textContent = `${state.miniYear}年 ${monthNames[state.miniMonth]}`;
@@ -149,6 +177,11 @@ function renderMini() {
 function shiftMonth(amount) {
   const next = new Date(state.year, state.month + amount, 1);
   state.year = next.getFullYear(); state.month = next.getMonth();
+  if (state.view === 'month-day') {
+    const selected = new Date(`${state.selectedDate}T12:00:00`);
+    const day = Math.min(selected.getDate(), new Date(state.year, state.month + 1, 0).getDate());
+    state.selectedDate = formatDate(new Date(state.year, state.month, day));
+  }
   state.miniYear = state.year; state.miniMonth = state.month; loadEvents();
 }
 function shiftDate(amount) {
@@ -183,6 +216,7 @@ $('#event-dialog').addEventListener('click', (event) => { if (event.target === $
 $('#prev-month').addEventListener('click', () => navigatePeriod(-1));
 $('#next-month').addEventListener('click', () => navigatePeriod(1));
 $('#view-select').addEventListener('change', () => { state.view = $('#view-select').value; loadEvents(); });
+$('#agenda-add').addEventListener('click', () => openDialog(state.selectedDate));
 $('#mini-prev').addEventListener('click', () => { const date = new Date(state.miniYear, state.miniMonth - 1, 1); state.miniYear = date.getFullYear(); state.miniMonth = date.getMonth(); renderMini(); });
 $('#mini-next').addEventListener('click', () => { const date = new Date(state.miniYear, state.miniMonth + 1, 1); state.miniYear = date.getFullYear(); state.miniMonth = date.getMonth(); renderMini(); });
 $('#go-today').addEventListener('click', () => { state.selectedDate = formatDate(today); state.year = today.getFullYear(); state.month = today.getMonth(); state.miniYear = state.year; state.miniMonth = state.month; loadEvents(); });
